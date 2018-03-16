@@ -14,11 +14,15 @@ then
     exit
 fi
 
+DEBUG=0
+
 function zippydownload()
 {
+    ((DEBUG)) && echo "URL ${url}"
     prefix="$( echo -n "${url}" | cut -c "11,12,31-38" | sed -e 's/[^a-zA-Z0-9]//g' )"
     cookiefile="${prefix}-cookie.tmp"
     infofile="${prefix}-info.tmp"
+    ((DEBUG)) && echo "prefix ${prefix}"
 
     # loop that makes sure the script actually finds a filename
     filename=""
@@ -36,11 +40,15 @@ function zippydownload()
         filename="$( cat "${infofile}" | grep "/d/" | cut -d'/' -f5 | cut -d'"' -f1 | grep -o "[^ ]\+\(\+[^ ]\+\)*" )"
     done
 
+    ((DEBUG)) && echo "filename ${filename}"
+
     if [ "${retry}" -ge 10 ]
     then
         echo "could not download file"
         exit
     fi
+
+    ((DEBUG)) && cat "${cookiefile}" 
 
     # Get cookie
     if [ -f "${cookiefile}" ]
@@ -51,25 +59,33 @@ function zippydownload()
         exit
     fi
 
+    ((DEBUG)) && echo "jsessionid ${jsessionid}"
+
     if [ -f "${infofile}" ]
     then
-        # Get url algorithm
-        dlbutton="$( grep 'getElementById..dlbutton...href' "${infofile}" | grep -m 1 -o '([0-9 \*%+\-]*)' | grep -m 1 -o '[0-9 \*%+\-]*' )"
-        if [ -n "${dlbutton}" ]
-        then
-           algorithm="${dlbutton}" 
-        else
-            algorithm="$( grep -E 'var a = [0-9][^;]*' "${infofile}" | grep -o '[0-9][^;]*')"
-        fi
-
-        a="$( echo $(( ${algorithm} )) )"
+	var_a=$(cat "${infofile}" | perl -n -e '/var a = (\d+);/ && print $1')
+	((DEBUG)) && echo "var_a $var_a"
+	subs_0=$(cat "${infofile}"  | grep omg | perl -n -e '/substr\((\d+)/ && print $1')
+        ((DEBUG)) && echo "subs_0 $subs_0"
+	subs_1=$(cat "${infofile}"  | grep omg | perl -n -e '/substr\((\d+), (\d+)/ && print $2')
+        ((DEBUG)) && echo "subs_1 $subs_1"
+	let var_b=$subs_1-$subs_0
+        ((DEBUG)) && echo "var_b $var_b"
+	pow=$(cat "${infofile}" | grep dlbutton | grep href | perl -n -e '/Math\.pow\(a, (\d+)\)/ && print $1')
+        ((DEBUG)) && echo "pow $pow"
+	a=$(($var_a ** $pow + $var_b)) 
+        ((DEBUG)) && echo "a $a"
 
         # Get ref, server, id
         ref="$( cat "${infofile}" | grep 'property="og:url"' | cut -d'"' -f4 | grep -o "[^ ]\+\(\+[^ ]\+\)*" )"
+	((DEBUG)) && echo "ref ${ref}"
 
         server="$( echo "${ref}" | cut -d'/' -f3 )"
+	((DEBUG)) && echo "server ${server}"
 
         id="$( echo "${ref}" | cut -d'/' -f5 )"
+	((DEBUG)) && echo "id ${id}"
+
     else
         echo "can't find info file for ${prefix}"
         exit
@@ -77,6 +93,7 @@ function zippydownload()
 
     # Build download url
     dl="http://${server}/d/${id}/${a}/${filename}"
+    ((DEBUG)) && echo "dl ${dl}"
 
     # Set brower agent
     agent="Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36"
@@ -90,8 +107,8 @@ function zippydownload()
     --cookies=off --header "Cookie: JSESSIONID=${jsessionid}" \
     --user-agent="${agent}"
 
-    rm -f "${cookiefile}" 2> /dev/null
-    rm -f "${infofile}" 2> /dev/null
+    ((DEBUG)) || rm -f "${cookiefile}" 2> /dev/null
+    ((DEBUG)) || rm -f "${infofile}" 2> /dev/null
 }
 
 if [ -f "${1}" ]

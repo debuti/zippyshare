@@ -1,5 +1,5 @@
 ## zippyshare.sh
-### bash script for downloading zippyshare files
+### bash script for downloading zippyshare files. Updated to 2018-03-16
 
 ##### Download single file from zippyshare
 
@@ -15,5 +15,5 @@ Example:
 
 zippyshare.sh uses `wget` with the `--continue` flag, which skips over completed files and attempts to  resume partially downloaded files.
 
-### Requirements: `coreutils`, `grep`, `sed`, `awk`, **`wget`**
+### Requirements: `coreutils`, `grep`, `sed`, `awk`, `perl`, **`wget`**
 
